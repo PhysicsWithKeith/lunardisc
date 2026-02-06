@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Physics With Keith - Lunar Master</title>
+    <style>
+        :root {
+            --neon-blue: #00f2ff;
+            --neon-pink: #ff00e5;
+            --space-black: #050508;
+            --neon-green: #39ff14;
+        }
+
+        body {
+            background-color: var(--space-black);
+            color: white;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #game-container {
+            position: relative;
+            width: 680px; /* Reduced size for better fit */
+            height: 720px; /* Reduced size for better fit */
+            border: 4px solid var(--neon-blue);
+            border-radius: 20px;
+            background: radial-gradient(circle at center, #0a0a1a 0%, #050508 100%);
+            box-shadow: 0 0 30px rgba(0, 242, 255, 0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px;
+            box-sizing: border-box;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 5px;
+        }
+
+        h1 { margin: 0; color: var(--neon-blue); text-transform: uppercase; letter-spacing: 2px; font-size: 2em; text-shadow: 0 0 10px var(--neon-blue); }
+        .brand { font-size: 0.9em; color: var(--neon-pink); font-weight: bold; letter-spacing: 1px; }
+
+        #stats-bar {
+            display: flex;
+            justify-content: space-around;
+            width: 95%;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px;
+            border-radius: 10px;
+            font-size: 1.1em;
+            border: 1px solid #333;
+            margin-bottom: 10px;
+        }
+
+        #ui-overlay {
+            text-align: center;
+            min-height: 100px;
+            width: 100%;
+        }
+
+        #question-text {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            color: var(--neon-green);
+        }
+
+        #moon-stage {
+            position: relative;
+            width: 360px; /* Scaled down moon */
+            height: 360px; /* Scaled down moon */
+            margin: 5px 0;
+            cursor: crosshair;
+        }
+
+        #moon-img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            box-shadow: 0 0 40px rgba(255, 255, 255, 0.15);
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .highlight-marker {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 3px solid var(--neon-pink);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            display: none;
+            animation: pulse 0.8s infinite alternate;
+            box-shadow: 0 0 15px var(--neon-pink);
+        }
+
+        @keyframes pulse {
+            from { transform: translate(-50%, -50%) scale(1); }
+            to { transform: translate(-50%, -50%) scale(1.4); }
+        }
+
+        .control-row {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .btn {
+            background: rgba(0, 242, 255, 0.1);
+            color: white;
+            border: 2px solid var(--neon-blue);
+            padding: 10px 20px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: 0.2s;
+            text-transform: uppercase;
+            font-size: 0.9em;
+        }
+
+        .btn:hover { background: var(--neon-blue); color: black; box-shadow: 0 0 15px var(--neon-blue); }
+        
+        .btn-skip { border-color: #777; color: #ccc; }
+        .btn-skip:hover { background: #444; color: white; border-color: white; }
+        
+        .btn-end { border-color: #ff4444; color: #ff4444; }
+        .btn-end:hover { background: #ff4444; color: white; box-shadow: 0 0 15px #ff4444; }
+
+        #feedback {
+            position: absolute;
+            top: 50%;
+            font-size: 2.5em;
+            font-weight: 900;
+            pointer-events: none;
+            z-index: 100;
+            text-shadow: 2px 2px 10px black;
+        }
+
+        #summary-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(5, 5, 8, 0.95);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 16px;
+            z-index: 200;
+        }
+
+        #summary-content {
+            width: 85%;
+            max-height: 60%;
+            overflow-y: auto;
+            margin: 15px 0;
+            scrollbar-width: thin;
+            scrollbar-color: var(--neon-blue) transparent;
+        }
+
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; border-bottom: 1px solid #333; text-align: left; font-size: 0.9em; }
+        th { color: var(--neon-blue); }
+        .wrong-row { color: var(--neon-pink); }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <header>
+        <div class="brand">PHYSICS WITH KEITH PRESENTS</div>
+        <h1>Lunar Master</h1>
+    </header>
+
+    <div id="stats-bar">
+        <span>Time: <span id="timer" style="color:var(--neon-pink)">5:00</span></span>
+        <span>Attempts: <span id="count-total">0</span></span>
+        <span>Score: <span id="count-right" style="color:var(--neon-green)">0</span></span>
+    </div>
+
+    <div id="ui-overlay">
+        <h3 id="question-text">Ready to map the Moon?</h3>
+        <div id="options-container">
+            <button class="btn" style="font-size: 1.2em;" onclick="startGame()">INITIATE MISSION</button>
+        </div>
+    </div>
+
+    <div id="moon-stage">
+        <svg id="moon-img" viewBox="0 0 100 100">
+            <defs>
+                <radialGradient id="moonGrad">
+                    <stop offset="70%" stop-color="#ddd" />
+                    <stop offset="100%" stop-color="#999" />
+                </radialGradient>
+            </defs>
+            <circle cx="50" cy="50" r="48" fill="url(#moonGrad)" />
+            <ellipse cx="62" cy="35" rx="10" ry="8" fill="#666" opacity="0.8"/>
+            <ellipse cx="68" cy="50" rx="11" ry="9" fill="#555" opacity="0.8"/>
+            <ellipse cx="72" cy="65" rx="7" ry="6" fill="#666" opacity="0.8"/>
+            <ellipse cx="82" cy="45" rx="5" ry="4" fill="#444" opacity="0.8"/>
+            <ellipse cx="30" cy="45" rx="15" ry="22" fill="#777" opacity="0.8"/>
+            <path d="M 45 30 Q 50 35 55 30" fill="none" stroke="#444" stroke-width="2" />
+            <circle cx="50" cy="80" r="2.5" fill="white" stroke="#999" stroke-width="0.5"/>
+            <circle cx="35" cy="42" r="1.8" fill="white" stroke="#999" stroke-width="0.5"/>
+            <circle cx="25" cy="40" r="1.2" fill="white" stroke="#999" stroke-width="0.5"/>
+        </svg>
+        <div id="highlight" class="highlight-marker"></div>
+    </div>
+
+    <div class="control-row" id="game-controls" style="display:none;">
+        <button class="btn btn-skip" onclick="skipQuestion()">Skip</button>
+        <button class="btn btn-end" onclick="endEarly()">End Early</button>
+    </div>
+
+    <div id="feedback"></div>
+
+    <div id="summary-screen">
+        <h1 style="color: var(--neon-pink); font-size: 1.8em;">Mission Summary</h1>
+        <h2 id="final-score" style="font-size: 1.5em; margin: 10px 0;"></h2>
+        <div id="summary-content">
+            <table id="wrong-table">
+                <thead>
+                    <tr><th>Feature</th><th>Misses/Skips</th></tr>
+                </thead>
+                <tbody id="summary-body"></tbody>
+            </table>
+        </div>
+        <button class="btn" style="margin-top:10px;" onclick="location.reload()">RE-INITIATE MISSION</button>
+    </div>
+</div>
+
+<script>
+    const features = [
+        { name: "Sea of Serenity", x: 62, y: 35 },
+        { name: "Sea of Tranquility", x: 68, y: 50 },
+        { name: "Sea of Fertility", x: 72, y: 65 },
+        { name: "Sea of Crises", x: 82, y: 45 },
+        { name: "Ocean of Storms", x: 30, y: 45 },
+        { name: "Appenines", x: 50, y: 31 },
+        { name: "Kepler", x: 25, y: 40 },
+        { name: "Copernicus", x: 35, y: 42 },
+        { name: "Tycho", x: 50, y: 80 }
+    ];
+
+    let score = { total: 0, right: 0 };
+    let mistakes = {};
+    let timeLeft = 300;
+    let timerInterval;
+    let currentRotation = 0;
+    let currentQuestion = null;
+    let isAcceptingInput = false;
+
+    function startGame() {
+        document.getElementById('game-controls').style.display = 'flex';
+        startTimer();
+        nextQuestion();
+    }
+
+    function startTimer() {
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            let mins = Math.floor(timeLeft / 60);
+            let secs = timeLeft % 60;
+            document.getElementById('timer').innerText = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+            if (timeLeft <= 0) endGame();
+        }, 1000);
+    }
+
+    function nextQuestion() {
+        if (timeLeft <= 0) return;
+        isAcceptingInput = true;
+        document.getElementById('highlight').style.display = 'none';
+        document.getElementById('feedback').innerText = '';
+        document.getElementById('options-container').innerHTML = '';
+        currentRotation = Math.floor(Math.random() * 360);
+        document.getElementById('moon-img').style.transform = `rotate(${currentRotation}deg)`;
+        currentQuestion = features[Math.floor(Math.random() * features.length)];
+        const mode = Math.random() > 0.5 ? 'CLICK' : 'NAME';
+        if (mode === 'CLICK') {
+            document.getElementById('question-text').innerHTML = `Click on the <span style="color:white; border-bottom: 2px solid var(--neon-pink)">${currentQuestion.name}</span>`;
+        } else {
+            setupNameMode();
+        }
+    }
+
+    function setupNameMode() {
+        document.getElementById('question-text').innerText = `Identify the highlighted feature:`;
+        showHighlight(currentQuestion);
+        let options = [currentQuestion.name];
+        while(options.length < 4) {
+            let rand = features[Math.floor(Math.random() * features.length)].name;
+            if(!options.includes(rand)) options.push(rand);
+        }
+        options.sort(() => Math.random() - 0.5);
+        options.forEach(opt => {
+            const b = document.createElement('button');
+            b.className = 'btn';
+            b.style.margin = '3px';
+            b.innerText = opt;
+            b.onclick = () => checkNameAnswer(opt);
+            document.getElementById('options-container').appendChild(b);
+        });
+    }
+
+    function getRotatedCoords(x, y, angle) {
+        let rad = (angle * Math.PI) / 180;
+        let cx = 50, cy = 50;
+        let nx = Math.cos(rad) * (x - cx) - Math.sin(rad) * (y - cy) + cx;
+        let ny = Math.sin(rad) * (x - cx) + Math.cos(rad) * (y - cy) + cy;
+        return { x: nx, y: ny };
+    }
+
+    document.getElementById('moon-stage').addEventListener('click', (e) => {
+        if (!isAcceptingInput || document.getElementById('options-container').innerHTML !== '') return;
+        const rect = document.getElementById('moon-stage').getBoundingClientRect();
+        const clickX = ((e.clientX - rect.left) / rect.width) * 100;
+        const clickY = ((e.clientY - rect.top) / rect.height) * 100;
+        const rotated = getRotatedCoords(currentQuestion.x, currentQuestion.y, currentRotation);
+        const dist = Math.hypot(clickX - rotated.x, clickY - rotated.y);
+        handleResult(dist < 7);
+    });
+
+    function checkNameAnswer(answer) {
+        if (!isAcceptingInput) return;
+        handleResult(answer === currentQuestion.name);
+    }
+
+    function skipQuestion() {
+        if (!isAcceptingInput) return;
+        trackMistake(currentQuestion.name);
+        score.total++;
+        updateStats();
+        nextQuestion();
+    }
+
+    function endEarly() {
+        timeLeft = 0;
+        endGame();
+    }
+
+    function handleResult(isCorrect) {
+        isAcceptingInput = false;
+        score.total++;
+        if (isCorrect) {
+            score.right++;
+            showFeedback("✓ CORRECT", "var(--neon-green)");
+            setTimeout(nextQuestion, 800);
+        } else {
+            trackMistake(currentQuestion.name);
+            showFeedback("✗ WRONG", "var(--neon-pink)");
+            showHighlight(currentQuestion);
+            setTimeout(nextQuestion, 2000);
+        }
+        updateStats();
+    }
+
+    function trackMistake(name) {
+        mistakes[name] = (mistakes[name] || 0) + 1;
+    }
+
+    function showFeedback(text, color) {
+        const fb = document.getElementById('feedback');
+        fb.innerText = text;
+        fb.style.color = color;
+    }
+
+    function showHighlight(feature) {
+        const rotated = getRotatedCoords(feature.x, feature.y, currentRotation);
+        const h = document.getElementById('highlight');
+        h.style.left = rotated.x + '%';
+        h.style.top = rotated.y + '%';
+        h.style.display = 'block';
+    }
+
+    function updateStats() {
+        document.getElementById('count-total').innerText = score.total;
+        document.getElementById('count-right').innerText = score.right;
+    }
+
+    function endGame() {
+        clearInterval(timerInterval);
+        document.getElementById('summary-screen').style.display = 'flex';
+        document.getElementById('final-score').innerText = `Final Score: ${score.right} / ${score.total}`;
+        let tbody = document.getElementById('summary-body');
+        tbody.innerHTML = '';
+        let sortedMistakes = Object.entries(mistakes).sort((a,b) => b[1] - a[1]);
+        for (let [name, count] of sortedMistakes) {
+            let row = `<tr class="wrong-row"><td>${name}</td><td>${count}</td></tr>`;
+            tbody.innerHTML += row;
+        }
+        if (Object.keys(mistakes).length === 0 && score.total > 0) {
+            tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; color:var(--neon-green)">Perfect mission! Astronomer status achieved.</td></tr>';
+        } else if (score.total === 0) {
+            tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;">No data recorded.</td></tr>';
+        }
+    }
+</script>
+</body>
+</html>
